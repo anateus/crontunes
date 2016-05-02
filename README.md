@@ -8,7 +8,12 @@ Crontunes is a WebAudio sequencer that uses crontab-like sequence.
       │ │ │ │ │ ┌─────────────────── 1 beat
       │ │ │ │ │ │
       * * * * * * instrument
-                  (e.q. square(440, 0.125))
+
+
+So to play a square wave oscillator every 1/8 beat that's divisible by 3 for 1/8 of a beat you'd write:
+
+
+      0 0 */3 * * * square(440, 0.125)
 
 
 ### Running
