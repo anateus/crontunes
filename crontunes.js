@@ -3,8 +3,7 @@ _.contains = function(s, t) {
 };
 
 
-var currentTempo = 60;
-var tempo = 220;
+var tempo = 120;
 
 // create web audio api context
 var audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -18,16 +17,6 @@ var createOscillator = function(type, frequency, destination) {
   oscillator.frequency.value = frequency || 3000; // value in hertz
   oscillator.connect(destination || audioContext.destination);
   return oscillator;
-};
-
-var getOneBeatOscillatorFunction = function(beat) {
-  var oscillator = createOscillator();
-  console.log("Generating oscillator for beat", beat);
-  return function() {
-    console.log("Trying to run oscillator for beat",beat);
-    oscillator.start(beat);
-    oscillator.stop(beat+1);
-  };
 };
 
 var rangePattern = /(\d+?)(?:-(\d+?))?(?:\/(\d+?))?(?:,|$)/g;
@@ -63,16 +52,15 @@ var parseWhen = function(whens) {
   });
 };
 
-var whatPattern = /(\w+)\(((?:["']?\w+["'']?,?\s*?)+)\)/;
+// var whatPattern = /(\w+)\(((?:["']?\S+["'']?,?\s*?)+)\)/;
+var whatSplitPattern = /(?:[(),;]|\s)/;
 var parseWhat = function(what) {
-  var parsed = what.match(whatPattern);
+  var parsed = _.flatMap(what.join(' ').split(whatSplitPattern), function(w) { return w === '' ? [] : w });
+  // var parsed = _.map(what, .join(' ').match(whatPattern);
   return {
-    type: parsed[1],
-    arguments: _.chain(parsed[2])
-      .split(',')
-      .map(_.trim)
-      .value()
-  }
+    type: parsed[0],
+    arguments: parsed.slice(1)
+  };
 };
 
 var parseTab = function(input, differentNoteLengths) {
@@ -82,35 +70,36 @@ var parseTab = function(input, differentNoteLengths) {
     var splitLine = line.split(/\s/);
     return {
       when: parseWhen(splitLine.slice(0, lengths)),
-      what: parseWhat(splitLine.slice(lengths)[0])
+      what: parseWhat(splitLine.slice(lengths))
     };
   });
 };
 
+var nodes = [],
+    tracks = [];
+
 /**
  * args:
  *  0 - frequency - integer - in hz
- *  1 - duration - float - in beats
+ *  1 - duration - float - in seconds
  */
-var generateOscillator = function(type, beat, args) {
+var createOscillatorInstrument = function(type, time, args) {
   var oscillator = createOscillator(type, _.parseInt(args[0]));
+  nodes.push(oscillator);
   var duration = parseFloat(args[1]) || 0.125;
   return function() {
-    console.log("Playing on beat", beat, type, '(', args.join(', '), ')');
-    oscillator.start(beat);
-    oscillator.stop(beat + duration);
+    console.log("Playing at time", time, type, '(', args.join(', '), ')');
+    oscillator.start(time);
+    oscillator.stop(time + duration);
   };
 };
 
 var instruments = {
-  'square': _.bind(generateOscillator, null, 'square'),
-  'saw': _.bind(generateOscillator, null, 'sawtooth')
+  'square': _.bind(createOscillatorInstrument, null, 'square'),
+  'saw': _.bind(createOscillatorInstrument, null, 'sawtooth')
 };
 
 var shouldPlayOnThisBeat = function(beat, whens, differentNoteLengths) {
-  /*
-   * 
-   */
   var intervals = _.map(_.range(differentNoteLengths - 1, 0), function(exp) { return 1.0 / Math.pow(2, exp); }).concat([1.0]);
   var whenIndex = intervals.indexOf(beat % 1 || 1);  // If it's 0, it's equivalent to 1.
   if (whenIndex == -1) {
@@ -135,42 +124,50 @@ var shouldPlayOnThisBeat = function(beat, whens, differentNoteLengths) {
   }
 };
 
-var tracks = [];
+var gatherMetadata = function() {
+  try {
+    var metadata = JSON.parse(metadataEditor.getValue());
+    tempo = metadata.tempo || tempo;
+  } catch(e) {}
+};
+
 
 var playTab = function(rawTab, differentNoteLengths) {
+  stopAll();
+  gatherMetadata();
   var lengths = differentNoteLengths || 6;
   var minimalDistance = 1.0/Math.pow(2, lengths - 1);
   var tab = parseTab(rawTab, lengths);
-  tracks = [];
   clock.start();
   console.log(JSON.stringify(tab, null, 2));
   for (var beat = 0; beat < tempo + 1; beat += minimalDistance) {
     _.each(tab, function(line) {
       if (shouldPlayOnThisBeat(beat, line.when, lengths)) {
-        // console.log('Beat', beat,':', JSON.stringify(line));
-        tracks.push(clock.callbackAtTime(instruments[line.what.type](beat, line.what.arguments), beat))
+        var time = 60.0/tempo * beat;
+        tracks.push(clock.callbackAtTime(instruments[line.what.type](time, line.what.arguments), time))
       }
     });
-  }
-  if (currentTempo != tempo) {
-    clock.timeStretch(audioContext.currentTime, tracks, currentTempo / tempo);
-    currentTempo = tempo;
   }
 };
 
 var stopAll = function() {
-  _.each(tracks, function(event){
+  _.each(tracks, function(event) {
     event.clear();
   });
+  _.each(nodes, function(node) {
+    try {
+      node.stop();
+    } catch(e) {};
+  });
   clock.stop();
+  audioContext.close();
+  audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  clock = new WAAClock(audioContext);
   tracks = [];
+  nodes = [];
 };
 
 var playTabField = function() {
   playTab(tab.innerText);
 };
 
-// playTab("0 0 0 0 * * square(440)");
-// playTab("0 0 * * * * saw(440)");
-// playTab("0 */3 * * * * square(440)");
-// playTab("*/7 * * * * * square(440)");

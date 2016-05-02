@@ -9,15 +9,9 @@
 <body>
     <h1>Crontunes</h1>
     <h3><a href="#" onclick='playTab(editor.getValue())'>Play</a> <a href="#" onclick='stopAll()'>Stop</a></h3>
-    <textarea id="tab">
-0 0 0 0 * * square(440)
-0 0 * * * * saw(440)</textarea>
-    <script type="text/javascript">
-      var tab = document.getElementById('tab');
-      var editor = CodeMirror.fromTextArea(tab, {
-        lineNumbers: true,
-        keyMap: 'vim'
-      });
-    </script>
+    <textarea id="tab"></textarea>
+    <h4>Metadata:</h4>
+    <textarea id="metadata"></textarea>
+    <script src="./crontunes-editor.js"></script>
 </body>
 </html>
