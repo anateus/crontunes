@@ -2,7 +2,9 @@ _.contains = function(s, t) {
   return s.indexOf(t) != -1;
 };
 
-var tempo = 220, signature = 4, beatDur = 60/tempo, barDur = signature * beatDur;
+
+var currentTempo = 60;
+var tempo = 220;
 
 // create web audio api context
 var audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -94,7 +96,7 @@ var generateOscillator = function(type, beat, args) {
   var oscillator = createOscillator(type, _.parseInt(args[0]));
   var duration = parseFloat(args[1]) || 0.125;
   return function() {
-    console.log("Playing on beat", beat, type, '(', args, ')');
+    console.log("Playing on beat", beat, type, '(', args.join(', '), ')');
     oscillator.start(beat);
     oscillator.stop(beat + duration);
   };
@@ -149,6 +151,10 @@ var playTab = function(rawTab, differentNoteLengths) {
         tracks.push(clock.callbackAtTime(instruments[line.what.type](beat, line.what.arguments), beat))
       }
     });
+  }
+  if (currentTempo != tempo) {
+    clock.timeStretch(audioContext.currentTime, tracks, currentTempo / tempo);
+    currentTempo = tempo;
   }
 };
 

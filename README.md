@@ -18,8 +18,6 @@ So to play a square wave oscillator every 1/8 beat that's divisible by 3 for 1/8
 
 ### Running
 
-```bash
-twistd web --path . --port 8888
-```
-
-Then open `crontunes.html`.
+1. `twistd web --path . --port 8888`
+2. Open `crontunes.html`.
+3. Type in your tab into the box and click Play.
