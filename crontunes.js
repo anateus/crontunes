@@ -2,7 +2,7 @@ _.contains = function(s, t) {
   return s.indexOf(t) != -1;
 };
 
-var tempo = 120, signature = 4, beatDur = 60/tempo, barDur = signature * beatDur;
+var tempo = 220, signature = 4, beatDur = 60/tempo, barDur = signature * beatDur;
 
 // create web audio api context
 var audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -94,7 +94,7 @@ var generateOscillator = function(type, beat, args) {
   var oscillator = createOscillator(type, _.parseInt(args[0]));
   var duration = parseFloat(args[1]) || 0.125;
   return function() {
-    console.log("square on beat", beat);
+    console.log("Playing on beat", beat, type, '(', args, ')');
     oscillator.start(beat);
     oscillator.stop(beat + duration);
   };
@@ -133,26 +133,38 @@ var shouldPlayOnThisBeat = function(beat, whens, differentNoteLengths) {
   }
 };
 
-// TODO: Figure out play length, right now everything plays for one beat
+var tracks = [];
 
 var playTab = function(rawTab, differentNoteLengths) {
   var lengths = differentNoteLengths || 6;
   var minimalDistance = 1.0/Math.pow(2, lengths - 1);
   var tab = parseTab(rawTab, lengths);
-  var tracks = [];
+  tracks = [];
   clock.start();
   console.log(JSON.stringify(tab, null, 2));
   for (var beat = 0; beat < tempo + 1; beat += minimalDistance) {
     _.each(tab, function(line) {
       if (shouldPlayOnThisBeat(beat, line.when, lengths)) {
-        console.log('Beat', beat,':', JSON.stringify(line));
-        tracks.push(clock.callbackAtTime(instruments[line.what.type](beat, line.what.arguments)()), beat)
+        // console.log('Beat', beat,':', JSON.stringify(line));
+        tracks.push(clock.callbackAtTime(instruments[line.what.type](beat, line.what.arguments), beat))
       }
     });
   }
 };
 
+var stopAll = function() {
+  _.each(tracks, function(event){
+    event.clear();
+  });
+  clock.stop();
+  tracks = [];
+};
+
+var playTabField = function() {
+  playTab(tab.innerText);
+};
+
 // playTab("0 0 0 0 * * square(440)");
-playTab("0 0 * * * * saw(440)");
+// playTab("0 0 * * * * saw(440)");
 // playTab("0 */3 * * * * square(440)");
-playTab("*/7 * * * * * square(440)");
+// playTab("*/7 * * * * * square(440)");
